@@ -1,0 +1,209 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================================================================
+    // SUPER J Y G - COSTA RICA POS: REGLAS DE SEGURIDAD EMPRESARIALES (ZERO-TRUST)
+    // =========================================================================
+
+    // Regla de denegación predeterminada (Global Safety Net)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // FUNCIONES GLOBALES DE SEGURIDAD Y VALIDACIÓN
+    // -------------------------------------------------------------------------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Validación de Rol Administrador contra documento seguro en colección /users/
+    function isAdmin() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Validación de Rol Cajero o Admin autenticado
+    function isStaff() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'cajero']);
+    }
+
+    // -------------------------------------------------------------------------
+    // VALIDACIÓN DE ENTIDAD: PRODUCTO (INVENTARIO)
+    // -------------------------------------------------------------------------
+    function isValidProduct(data) {
+      return data.keys().hasAll(['barcode', 'name', 'category', 'costPrice', 'salePrice', 'ivaRate', 'stock', 'isActive']) &&
+        data.keys().hasOnly(['barcode', 'name', 'category', 'costPrice', 'salePrice', 'ivaRate', 'stock', 'minStock', 'unit', 'isActive', 'updatedAt']) &&
+        data.barcode is string && data.barcode.size() >= 3 && data.barcode.size() <= 64 &&
+        data.name is string && data.name.size() >= 2 && data.name.size() <= 120 &&
+        data.category is string && data.category.size() <= 60 &&
+        data.costPrice is number && data.costPrice >= 0 &&
+        data.salePrice is number && data.salePrice >= 0 &&
+        (data.ivaRate == 0 || data.ivaRate == 0.01 || data.ivaRate == 0.02 || data.ivaRate == 0.13) &&
+        data.stock is number &&
+        data.isActive is bool;
+    }
+
+    // -------------------------------------------------------------------------
+    // VALIDACIÓN DE ENTIDAD: VENTA (TIQUETE POS)
+    // -------------------------------------------------------------------------
+    function isValidSale(data) {
+      return data.keys().hasAll(['invoiceNumber', 'cashierId', 'paymentMethod', 'subtotal', 'totalIva', 'total', 'status', 'createdAt']) &&
+        data.invoiceNumber is string && data.invoiceNumber.size() >= 5 && data.invoiceNumber.size() <= 50 &&
+        data.cashierId is string && data.cashierId == request.auth.uid &&
+        (data.paymentMethod in ['EFECTIVO', 'TARJETA', 'SINPE_MOVIL', 'CREDITO']) &&
+        data.subtotal is number && data.subtotal >= 0 &&
+        data.totalIva is number && data.totalIva >= 0 &&
+        data.total is number && data.total >= 0 &&
+        (data.status in ['COMPLETADA', 'ANULADA']) &&
+        data.items is list && data.items.size() > 0 && data.items.size() <= 100;
+    }
+
+    // -------------------------------------------------------------------------
+    // VALIDACIÓN DE ENTIDAD: CLIENTE (CARTERA / CRÉDITO)
+    // -------------------------------------------------------------------------
+    function isValidClient(data) {
+      return data.keys().hasAll(['fullName', 'identification', 'creditLimit', 'currentDebt', 'isActive']) &&
+        data.fullName is string && data.fullName.size() >= 3 && data.fullName.size() <= 120 &&
+        data.identification is string && data.identification.size() >= 6 && data.identification.size() <= 30 &&
+        data.creditLimit is number && data.creditLimit >= 0 &&
+        data.currentDebt is number && data.currentDebt >= 0 &&
+        data.isActive is bool;
+    }
+
+    // -------------------------------------------------------------------------
+    // VALIDACIÓN DE ENTIDAD: ARQUEO DE CAJA (TURNO)
+    // -------------------------------------------------------------------------
+    function isValidCashShift(data) {
+      return data.keys().hasAll(['cashierId', 'openingAmount', 'status', 'openedAt']) &&
+        data.cashierId is string &&
+        data.openingAmount is number && data.openingAmount >= 0 &&
+        (data.status in ['ABIERTO', 'CERRADO']);
+    }
+
+    // -------------------------------------------------------------------------
+    // VALIDACIÓN DE ENTIDAD: MERMA / PÉRDIDAS
+    // -------------------------------------------------------------------------
+    function isValidMerma(data) {
+      return data.keys().hasAll(['productId', 'quantity', 'reason', 'lossCost', 'reportedBy', 'createdAt']) &&
+        data.productId is string && data.productId.size() <= 128 &&
+        data.quantity is number && data.quantity > 0 &&
+        (data.reason in ['VENCIMIENTO', 'EMPAQUE_DANADO', 'CONSUMO_INTERNO', 'ROBO_EXTRAVIO', 'DESCONGELAMIENTO']) &&
+        data.lossCost is number && data.lossCost >= 0 &&
+        data.reportedBy is string && data.reportedBy.size() <= 100;
+    }
+
+    // =========================================================================
+    // COLECCIONES Y REGLAS DE ACCESO
+    // =========================================================================
+
+    // 1. USUARIOS Y ROLES (RBAC)
+    match /users/{userId} {
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow list: if isAdmin();
+      // Solo un administrador puede crear o modificar roles de empleados
+      allow create, update: if isAdmin();
+      allow delete: if false; // Auditoría permanente
+    }
+
+    // 2. INVENTARIO
+    match /inventory/{productId} {
+      // Todo el personal autenticado puede consultar inventario para el POS
+      allow get, list: if isStaff();
+      
+      // Creación y eliminación reservada a administradores
+      allow create: if isAdmin() && isValidId(productId) && isValidProduct(incoming());
+      allow delete: if isAdmin() && isValidId(productId);
+
+      // Actualización:
+      // a) Administrador: puede editar cualquier campo del producto
+      // b) Cajero: SOLO puede actualizar el stock al vender (decremento transaccional)
+      allow update: if isValidId(productId) && (
+        (isAdmin() && isValidProduct(incoming())) ||
+        (isStaff() &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['stock', 'updatedAt']) &&
+         incoming().stock is number &&
+         incoming().stock >= 0)
+      );
+    }
+
+    // 3. VENTAS (INMUTABILIDAD DE TICKETS)
+    match /sales/{saleId} {
+      // Todo el personal puede consultar comprobantes para reimpresión o consulta
+      allow get, list: if isStaff();
+
+      // Registro de venta por el cajero activo
+      allow create: if isStaff() && isValidId(saleId) && isValidSale(incoming()) && incoming().cashierId == request.auth.uid;
+
+      // Anulación de venta: Solo permitida por Administrador (bloquea modificación de líneas o montos)
+      allow update: if isAdmin() && isValidId(saleId) &&
+        existing().status == 'COMPLETADA' &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'cancellationReason', 'cancelledAt', 'cancelledBy']) &&
+        incoming().status == 'ANULADA';
+
+      allow delete: if false; // Prohibido borrar comprobantes fiscales
+    }
+
+    // 4. CLIENTES Y CRÉDITOS
+    match /clients/{clientId} {
+      allow get, list: if isStaff();
+      allow create: if isAdmin() && isValidId(clientId) && isValidClient(incoming());
+      allow delete: if isAdmin() && isValidId(clientId);
+
+      // Actualización:
+      // Admin: cualquier campo
+      // Cajero: solo modificación de saldo de deuda por ventas a crédito o abonos autorizados
+      allow update: if isValidId(clientId) && (
+        (isAdmin() && isValidClient(incoming())) ||
+        (isStaff() &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['currentDebt', 'lastPaymentDate']) &&
+         incoming().currentDebt is number &&
+         incoming().currentDebt <= existing().creditLimit)
+      );
+    }
+
+    // 5. TURNOS Y ARQUEOS DE CAJA
+    match /cash_shifts/{shiftId} {
+      allow get, list: if isStaff();
+
+      // Abrir turno: el cajero asignado
+      allow create: if isStaff() && isValidId(shiftId) && isValidCashShift(incoming()) && incoming().cashierId == request.auth.uid;
+
+      // Cerrar turno (transición de ABIERTO a CERRADO)
+      allow update: if isValidId(shiftId) && (
+        // El cajero cierra su propio turno
+        (isStaff() && existing().cashierId == request.auth.uid && existing().status == 'ABIERTO' &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['status', 'expectedCash', 'actualCash', 'difference', 'closedAt', 'notes']) &&
+         incoming().status == 'CERRADO') ||
+        // O el Administrador audita
+        isAdmin()
+      );
+
+      allow delete: if false;
+    }
+
+    // 6. MERMAS Y PÉRDIDAS
+    match /mermas/{mermaId} {
+      allow get, list: if isStaff();
+      // Solo el personal autorizado puede registrar mermas
+      allow create: if isStaff() && isValidId(mermaId) && isValidMerma(incoming());
+      allow update, delete: if isAdmin();
+    }
+  }
+}

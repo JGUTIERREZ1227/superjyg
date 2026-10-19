@@ -1,0 +1,6 @@
+{
+  "name": "SUPER J Y G - POS & Gestión Costa Rica",
+  "description": "Sistema de Punto de Venta, facturación electrónica con IVA DGT Costa Rica, control de inventario, arqueo de caja y seguridad para SUPER J Y G.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

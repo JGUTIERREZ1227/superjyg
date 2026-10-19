@@ -1,0 +1,155 @@
+/**
+ * SUPER J Y G - ESTILOS CSS Y REGLAS DE IMPRESIÓN TÉRMICA ESC/POS
+ * -------------------------------------------------------------
+ * Diseñado para pantallas táctiles de POS, terminales de cajero y
+ * rollos de papel térmico continuo estándar (80mm y 58mm) en Costa Rica.
+ */
+
+:root {
+  --primary-color: #0f766e;
+  --primary-dark: #115e59;
+  --accent-color: #f59e0b;
+  --bg-color: #f8fafc;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --border-color: #e2e8f0;
+  --danger-color: #ef4444;
+  --success-color: #10b981;
+}
+
+/* Tipografía e interfaz base */
+body {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Indicadores de atajos de teclado rápidos */
+.kbd-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.15rem 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  background: rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(15, 23, 42, 0.2);
+  border-radius: 4px;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.1);
+}
+
+/* ==========================================================================
+   REGLAS ESTRICTAS DE IMPRESIÓN TÉRMICA (@media print)
+   ==========================================================================
+   Optimizado para impresoras Epson TM-T20/TM-T88, Star Micronics, Bixolon
+   y tiqueteras genéricas USB/Bluetooth de 80mm y 58mm.
+   ========================================================================== */
+
+@media print {
+  /* 1. Ocultar todos los elementos interactivos del sistema operativo/navegador */
+  body * {
+    visibility: hidden;
+  }
+
+  /* 2. Mostrar exclusivamente el contenedor del tiquete térmico */
+  #thermal-receipt,
+  #thermal-receipt * {
+    visibility: visible;
+  }
+
+  #thermal-receipt {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 78mm !important; /* Ancho seguro para rollos de 80mm */
+    margin: 0 !important;
+    padding: 2mm 3mm !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-family: 'Courier New', Courier, monospace !important;
+    font-size: 11px !important;
+    line-height: 1.25 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  /* Configuración de página sin márgenes forzados */
+  @page {
+    size: 80mm auto;
+    margin: 0mm;
+  }
+
+  /* Clases de utilidad para el tiquete */
+  .receipt-center {
+    text-align: center;
+  }
+
+  .receipt-right {
+    text-align: right;
+  }
+
+  .receipt-bold {
+    font-weight: 900;
+  }
+
+  .receipt-divider {
+    border-top: 1px dashed #000000;
+    margin: 5px 0;
+  }
+
+  .receipt-double-divider {
+    border-top: 1px double #000000;
+    margin: 5px 0;
+  }
+
+  /* Tabla compacta de líneas de compra */
+  .receipt-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10.5px;
+  }
+
+  .receipt-table th {
+    border-bottom: 1px solid #000000;
+    padding: 2px 0;
+  }
+
+  .receipt-table td {
+    padding: 2px 0;
+    vertical-align: top;
+  }
+
+  /* Simulación de Código QR / Barras térmico */
+  .receipt-barcode {
+    height: 38px;
+    letter-spacing: 3px;
+    font-size: 14px;
+    font-weight: bold;
+    border: 1px solid #000000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 8px auto;
+  }
+
+  /* Ocultar botones de acción en el diálogo */
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* Visualización en pantalla del ticket (Simulador tipo papel) */
+.receipt-paper-preview {
+  width: 320px;
+  background-color: #ffffff;
+  color: #111827;
+  font-family: 'Courier New', Courier, monospace;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  padding: 1.25rem;
+  border-top: 4px solid #0f766e;
+}

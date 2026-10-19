@@ -1,0 +1,80 @@
+/**
+ * SUPER J Y G - ESTILOS CORPORATIVOS & REGLAS DE IMPRESIÓN TÉRMICA ESC/POS
+ * Costa Rica 🇨🇷 | POS Enterprise
+ */
+
+/* Scrollbars estilizadas */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Transiciones de pestañas */
+.nav-tab-active {
+  background-color: #4f46e5 !important;
+  color: #ffffff !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+/* Indicadores de atajos de teclado */
+kbd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* ==========================================================================
+   REGLAS DE IMPRESIÓN TÉRMICA ESC/POS (80mm y 58mm)
+   ========================================================================== */
+@media print {
+  /* Ocultar interfaz del sistema y botones */
+  body * {
+    visibility: hidden;
+  }
+  .no-print, header, nav, #auth-container {
+    display: none !important;
+  }
+
+  /* Mostrar exclusivamente el área del tiquete/factura */
+  #modal-invoice,
+  #modal-invoice * {
+    visibility: visible;
+  }
+
+  #modal-invoice {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 78mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  #print-invoice-area {
+    width: 78mm !important;
+    margin: 0 !important;
+    padding: 2mm 3mm !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-family: 'Courier New', Courier, monospace !important;
+    font-size: 11px !important;
+    line-height: 1.25 !important;
+    border: none !important;
+  }
+
+  @page {
+    size: 80mm auto;
+    margin: 0mm;
+  }
+}

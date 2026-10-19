@@ -1,0 +1,139 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Producto de Inventario",
+      "description": "Artículo para la venta en el supermercado con control de stock e impuestos de Costa Rica",
+      "type": "object",
+      "properties": {
+        "barcode": { "type": "string", "maxLength": 64, "description": "Código de barras único EAN-13 o interno" },
+        "name": { "type": "string", "maxLength": 120, "description": "Nombre comercial del producto" },
+        "category": { "type": "string", "maxLength": 60, "description": "Categoría (Abarrotes, Lácteos, Carnicería, Limpieza, etc.)" },
+        "costPrice": { "type": "number", "description": "Precio de costo de adquisición en Colones (₡)" },
+        "salePrice": { "type": "number", "description": "Precio de venta sin IVA en Colones (₡)" },
+        "ivaRate": { "type": "number", "enum": [0, 0.01, 0.02, 0.13], "description": "Tarifa de IVA según Hacienda CR (0%, 1% Canasta Básica, 2%, 13% General)" },
+        "stock": { "type": "number", "description": "Existencias actuales en inventario" },
+        "minStock": { "type": "number", "description": "Umbral de alerta de reorden" },
+        "unit": { "type": "string", "enum": ["UNIDAD", "KG", "LITRO", "PAQUETE"], "description": "Unidad de medida" },
+        "isActive": { "type": "boolean", "description": "Estado activo para la venta" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Última fecha de modificación" }
+      },
+      "required": ["barcode", "name", "category", "costPrice", "salePrice", "ivaRate", "stock", "isActive"]
+    },
+    "Sale": {
+      "title": "Comprobante de Venta",
+      "description": "Registro inmutable de transacción de venta en el POS con desglose tributario",
+      "type": "object",
+      "properties": {
+        "invoiceNumber": { "type": "string", "maxLength": 50, "description": "Consecutivo o clave de tiquete electrónico DGT" },
+        "cashierId": { "type": "string", "maxLength": 128, "description": "ID del cajero que procesó la venta" },
+        "cashierName": { "type": "string", "maxLength": 100, "description": "Nombre del cajero" },
+        "clientId": { "type": "string", "maxLength": 128, "description": "ID del cliente o 'CLIENTE_GENERAL'" },
+        "clientName": { "type": "string", "maxLength": 120, "description": "Nombre del cliente" },
+        "clientDocNumber": { "type": "string", "maxLength": 30, "description": "Cédula física o jurídica del cliente" },
+        "paymentMethod": { "type": "string", "enum": ["EFECTIVO", "TARJETA", "SINPE_MOVIL", "CREDITO"], "description": "Forma de pago" },
+        "paymentReference": { "type": "string", "maxLength": 60, "description": "Número de comprobante SINPE o tarjeta" },
+        "subtotal": { "type": "number", "description": "Monto neto gravado y exento sin IVA en ₡" },
+        "totalIva": { "type": "number", "description": "Impuesto total recaudado en ₡" },
+        "ivaBreakdown": { "type": "object", "description": "Desglose por tarifa de IVA (0%, 1%, 2%, 13%)" },
+        "total": { "type": "number", "description": "Monto total a pagar en ₡" },
+        "amountPaid": { "type": "number", "description": "Monto entregado por el cliente" },
+        "change": { "type": "number", "description": "Vuelto entregado al cliente en ₡" },
+        "status": { "type": "string", "enum": ["COMPLETADA", "ANULADA"], "description": "Estado de la venta" },
+        "items": { "type": "array", "description": "Líneas de la venta" },
+        "shiftId": { "type": "string", "maxLength": 128, "description": "Turno de caja asociado" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Fecha y hora de emisión" }
+      },
+      "required": ["invoiceNumber", "cashierId", "paymentMethod", "subtotal", "totalIva", "total", "status", "createdAt"]
+    },
+    "Client": {
+      "title": "Cliente de Cartera",
+      "description": "Registro de clientes frecuentes y cuentas corrientes de crédito",
+      "type": "object",
+      "properties": {
+        "fullName": { "type": "string", "maxLength": 120, "description": "Nombre completo o Razón Social" },
+        "identification": { "type": "string", "maxLength": 30, "description": "Cédula física, jurídica o DIMEX" },
+        "phone": { "type": "string", "maxLength": 20, "description": "Teléfono de contacto o SINPE" },
+        "email": { "type": "string", "maxLength": 100, "description": "Correo para factura electrónica" },
+        "creditLimit": { "type": "number", "description": "Límite máximo de crédito autorizado en ₡" },
+        "currentDebt": { "type": "number", "description": "Saldo deudor actual en ₡" },
+        "isActive": { "type": "boolean", "description": "Cliente habilitado" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Fecha de registro" }
+      },
+      "required": ["fullName", "identification", "creditLimit", "currentDebt", "isActive"]
+    },
+    "CashShift": {
+      "title": "Turno y Arqueo de Caja",
+      "description": "Control de apertura, transacciones por método de pago y cuadre de caja",
+      "type": "object",
+      "properties": {
+        "cashierId": { "type": "string", "maxLength": 128, "description": "UID del cajero responsable" },
+        "cashierName": { "type": "string", "maxLength": 100, "description": "Nombre del cajero" },
+        "openingAmount": { "type": "number", "description": "Fondo inicial de caja en ₡" },
+        "expectedCash": { "type": "number", "description": "Efectivo calculado por el sistema en ₡" },
+        "actualCash": { "type": "number", "description": "Efectivo contado físicamente en el arqueo" },
+        "difference": { "type": "number", "description": "Diferencia (sobrante positivo, faltante negativo)" },
+        "status": { "type": "string", "enum": ["ABIERTO", "CERRADO"], "description": "Estado del turno" },
+        "openedAt": { "type": "string", "format": "date-time", "description": "Timestamp de apertura" },
+        "closedAt": { "type": "string", "format": "date-time", "description": "Timestamp de cierre" },
+        "notes": { "type": "string", "maxLength": 250, "description": "Observaciones de supervisión" }
+      },
+      "required": ["cashierId", "openingAmount", "status", "openedAt"]
+    },
+    "Merma": {
+      "title": "Registro de Merma / Pérdida",
+      "description": "Registro de bajas de inventario por vencimiento, rotura o deterioro",
+      "type": "object",
+      "properties": {
+        "productId": { "type": "string", "maxLength": 128, "description": "ID del producto afectado" },
+        "productName": { "type": "string", "maxLength": 120, "description": "Nombre del producto" },
+        "quantity": { "type": "number", "description": "Cantidad de unidades dadas de baja" },
+        "reason": { "type": "string", "enum": ["VENCIMIENTO", "EMPAQUE_DANADO", "CONSUMO_INTERNO", "ROBO_EXTRAVIO", "DESCONGELAMIENTO"], "description": "Motivo de la merma" },
+        "lossCost": { "type": "number", "description": "Costo total de la pérdida en ₡" },
+        "reportedBy": { "type": "string", "maxLength": 100, "description": "Usuario que reportó la merma" },
+        "authorizedBy": { "type": "string", "maxLength": 100, "description": "Administrador que aprobó la merma" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Fecha del incidente" }
+      },
+      "required": ["productId", "quantity", "reason", "lossCost", "reportedBy", "createdAt"]
+    },
+    "UserProfile": {
+      "title": "Perfil de Usuario y Rol",
+      "description": "Control de acceso basado en roles (RBAC) para el sistema SUPER J Y G",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "maxLength": 100, "description": "Correo institucional" },
+        "displayName": { "type": "string", "maxLength": 100, "description": "Nombre y apellido" },
+        "role": { "type": "string", "enum": ["admin", "cajero", "auditor"], "description": "Rol asignado" },
+        "employeeCode": { "type": "string", "maxLength": 20, "description": "Código de empleado" },
+        "isActive": { "type": "boolean", "description": "Cuenta activa" },
+        "lastLogin": { "type": "string", "format": "date-time", "description": "Último ingreso" }
+      },
+      "required": ["email", "displayName", "role", "isActive"]
+    }
+  },
+  "firestore": {
+    "/inventory/{productId}": {
+      "schema": { "$ref": "Product" },
+      "description": "Catálogo de productos y control de existencias en tiempo real"
+    },
+    "/sales/{saleId}": {
+      "schema": { "$ref": "Sale" },
+      "description": "Colección de ventas e historial de comprobantes"
+    },
+    "/clients/{clientId}": {
+      "schema": { "$ref": "Client" },
+      "description": "Directorio de clientes de crédito y cuentas por cobrar"
+    },
+    "/cash_shifts/{shiftId}": {
+      "schema": { "$ref": "CashShift" },
+      "description": "Auditorías de arqueo y turnos de caja"
+    },
+    "/mermas/{mermaId}": {
+      "schema": { "$ref": "Merma" },
+      "description": "Registro de mermas y productos retirados"
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "UserProfile" },
+      "description": "Perfiles y roles de empleados autenticados"
+    }
+  }
+}
